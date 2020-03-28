@@ -1,0 +1,10 @@
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: Build & Test
+        run: |
+          ./batect build
+          ./batect unitTest
