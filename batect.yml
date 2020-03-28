@@ -1,0 +1,73 @@
+project_name: elko-spawn
+
+containers:
+  build-env:
+    image: openjdk:8u181-jdk
+    volumes:
+      - local: .
+        container: /code
+        options: cached
+      - type: cache
+        name: gradle-cache
+        container: /home/container-user/.gradle
+    working_directory: /code
+    environment:
+      GRADLE_OPTS: -Dorg.gradle.daemon=false
+    run_as_current_user:
+      enabled: true
+      home_directory: /home/container-user
+
+  elko-spawn:
+    build_directory: .batect/elko-spawn
+    dependencies:
+      - database
+
+  database:
+    build_directory: .batect/database
+    environment:
+      POSTGRES_USER: spawn
+      POSTGRES_PASSWORD: spawnpassword
+      POSTGRES_DB: spawn
+
+  docker-push-env:
+    build_directory: .batect/docker-push-env
+    volumes:
+      - local: .
+        container: /code
+        options: cached
+      - local: /var/run/docker.sock
+        container: /var/run/docker.sock
+    working_directory: /code
+
+tasks:
+  build:
+    description: Build the application.
+    group: Build tasks
+    run:
+      container: build-env
+      command: ./gradlew assembleDistForContainer
+
+  unitTest:
+    description: Run the unit tests.
+    group: Test tasks
+    run:
+      container: build-env
+      command: ./gradlew test
+
+  continuousUnitTest:
+    description: Run the unit tests and then re-run them when any code changes are detected.
+    group: Test tasks
+    run:
+      container: build-env
+      command: ./gradlew --continuous test
+
+  app:
+    description: Run the application.
+    group: Test tasks
+    prerequisites:
+      - build
+    run:
+      container: elko-spawn
+      ports:
+        - local: 8080
+          container: 8080
